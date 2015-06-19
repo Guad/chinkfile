@@ -2,8 +2,8 @@ import string, random, hashlib, os
 from time import strftime
 from shutil import rmtree
 from waitress import serve
+from flask import Flask, url_for, flash, Markup, render_template, request, redirect, abort, send_from_directory
 
-import flask
 from werkzeug import secure_filename
 
 # Load config file
@@ -13,12 +13,12 @@ with open('config.ini', 'r') as configuration:
         line = line.split('==')
         config[line[0]] = line[1]
 
-app = flask.Flask(__name__)  # Initialize our application
-app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024  # Set the upload limit to 10MiB
+app = Flask(__name__)
+app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024  # 10MiB upload limit
 app.secret_key = config['SECRET_KEY']
 
-
-def genHash(seed, leng=5):  # Generate five letter filenames for our files
+def genHash(seed, leng=5):
+    """ Generate five letter filenames for our files. """
     base = string.ascii_lowercase + string.digits
     random.seed(seed)
     hash_value = ""
@@ -26,41 +26,58 @@ def genHash(seed, leng=5):  # Generate five letter filenames for our files
         hash_value += random.choice(base)
     return hash_value
 
+def getDirnameExtension(f):
+    """ Gets the dirname and extension of the file. """
+    hasher = hashlib.md5() 		
+    buf = f.read()		   		
+    f.seek(0)
+    hasher.update(buf)
+    dirname = genHash(hasher.hexdigest())
+    if(len(f.filename.split('.')) != 1):
+        if('.'.join(f.filename.split('.')[-2:]) == 'tar.gz'):
+            extension = '.'.join(f.filename.split('.')[-2:])
+        else:
+            extension = f.filename.split('.')[-1]
+            dirname += '.' + extension
+    return [dirname, extension]
+
 def handleUpload(f, js=True):
+    """ Handles the main file upload behavior. """
+    value = ""
     if secure_filename(f.filename):
-        hasher = hashlib.md5() 		
-        buf = f.read()		   		
-        f.seek(0)
-        hasher.update(buf)
-        dirname = genHash(hasher.hexdigest())
-        if(len(f.filename.split('.')) != 1):
-            if('.'.join(f.filename.split('.')[-2:]) == 'tar.gz'):
-                extension = '.'.join(f.filename.split('.')[-2:])
-            else:
-                extension = f.filename.split('.')[-1]
-                dirname += '.' + extension
+        # get variables
+        dirname, extension = getDirnameExtension(f)
+        sfilename = secure_filename(f.filename)
+        # do the file saving
         if not os.path.exists("static/files/%s" % dirname):
+            # if it it's not there, make the directory and save the file
             os.mkdir('static/files/%s' % dirname)
-            f.save('static/files/%s/%s' % (dirname, secure_filename(f.filename)))
-            print 'Uploaded file "%s" to %s' % (secure_filename(f.filename), dirname)
-            if js:
-                return 'success:' + flask.url_for('getFile', dirname=dirname) + ':' + dirname
-            else:
-                flask.flash(flask.Markup('Uploaded file %s to <a href="%s">%s</a>') % (secure_filename(f.filename), flask.url_for('getFile', dirname=dirname, filename=secure_filename), f.filename, dirname))
+            f.save('static/files/%s/%s' % (dirname, sfilename))
+            print('Uploaded file "%s" to %s' % (sfilename, dirname))
+
+            # value is used with /js route, otherwise it's ignored
+            url = url_for('getFile', dirname=dirname)
+            value = 'success:' + url + ':' + dirname
+            # if not js, then flash
+            # used to prevent flashes from showing up upon refresh
+            if not js:
+                message = 'Uploaded file %s to <a href="%s">%s</a>'
+                flash(Markup(message) % (sfilename, url, dirname))
         else:
-            if js:
-                return 'exists:' + flask.url_for('getFile', dirname=dirname) + ':' + dirname
-            else:
-                flask.flash(flask.Markup('File %s already exists at <a href="%s">%s</a>') % (secure_filename(f.filename), flask.url_for('getFile', dirname=dirname), dirname))
+            url = url_for('getFile', dirname=dirname)
+            value = 'exists:' + url + ':' + dirname
+            if not js:
+                message = 'File %s already exists at <a href="%s">%s</a>'
+                flash(Markup(message) % (sfilename, url, dirname))
     else:
-        if js:
-            return 'error:filenameinvalid'
-        else:
-            flask.flash('Invalid filename.', flask.url_for('getIndex'))
+        value = 'error:filenameinvalid'
+        if not js:
+            flash('Invalid filename.', url_for('getIndex'))
+    return value
 
 @app.route('/', methods=['GET'])
 def getIndex():
-    return flask.render_template('index.html')
+    return render_template('index.html')
 
 @app.route('/', methods=['POST'])
 def postIndex():
@@ -71,10 +88,10 @@ def postIndex():
 
     As we are using javascript upload, this is left for noscript users.
     """
-    uploaded = flask.request.files.getlist("file[]")
+    uploaded = request.files.getlist("file[]")
     for f in uploaded:
-        handleUpload(f)
-    return flask.redirect(flask.url_for('getIndex'))
+        handleUpload(f, js=False)
+    return redirect(url_for('getIndex'))
 
 @app.route('/js', methods=['POST'])
 def indexJS():
@@ -82,27 +99,37 @@ def indexJS():
     File upload for the js happens here.
     the normal one acts as a fallback.
     """
-    uploaded = flask.request.files.getlist("file[]")
+    uploaded = request.files.getlist("file[]")
+    # handling value this way allows for multiple uploads to work
+    # not that the web gui does this at the moment, but it's nice through curl
+    value = []
     for f in uploaded:
-        return handleUpload(f)
+        v = handleUpload(f)
+        value.append(v)
+    # it will return the return values delimited by a newline
+    # doesn't break existing functionality
+    return '\n'.join(value)
 
 @app.route('/<dirname>')
 @app.route('/<dirname>/<filename>')
-def getFile(dirname, filename=None):  # File delivery to the client
-    if filename:  # Dir and filename is provided
-        return flask.send_from_directory('static/files/%s' % dirname,
-                filename)  # Gets the file 'filename' from the directory /static/files/
-    elif not filename:  # Filename is absent - we get it for them.
-        if os.path.exists('static/files/%s' % dirname):  # Does it even exist?
+def getFile(dirname, filename=None):
+    """
+    Flie delivery to the client.
+    """
+    if filename:
+        # If dir and filename  is provided, serve it directly
+        return send_from_directory('static/files/%s' % dirname, filename)
+    elif not filename:
+        # Otherwise, find the filename and redirect back with it
+        if os.path.exists('static/files/%s' % dirname):
             files = os.listdir('static/files/%s' % dirname)
-            if files:  # Check if there's any file in the directory.
-                return flask.redirect(flask.url_for('getFile', dirname=dirname, filename=files[0]))
-            # Resend to the proper location to avoid file corruptions.
+            if files:
+                # redirect back
+                return redirect(url_for('getFile', dirname=dirname, filename=files[0]))
         else:
-            flask.abort(404)  # File has not been found.
-
+            abort(404)
 
 if __name__ == '__main__':
     #app.debug = True
-        app.run(host="0.0.0.0") #Run our app.
-        #serve(app, port=80)
+    #app.run(host="0.0.0.0")
+    serve(app, port=80)
