@@ -28,7 +28,7 @@ $(document).ready(function()
 		}
 	}
 });
-
+var fadeTime = 2000;
 var gCounter = 0;
 var total = 0;
 function processFilesRecursively(fileArray)
@@ -136,7 +136,7 @@ function fileCard(filename, id) {
 	
 	div.hide();
 	div.insertAfter('#afterthis');
-	div.fadeIn(1000);
+	div.fadeIn(fadeTime);
 }
 
 function fileAlertCard(filename, text) {
@@ -146,7 +146,7 @@ function fileAlertCard(filename, text) {
 	var head = '<h5 class="truncate">';
 	var name =  filename;
 	var action = '</h5></div><div class="card-action">';
-	var progress2 = '<a>' + text + '</a></div>';
+	var progress2 = '<i class="small mdi-alert-error"></i> <a>' + text + '</a></div>';
 	var actionend = '</div>';
 	var inter2 = '';
 	var end = '</div></div></div>';
@@ -165,7 +165,7 @@ function fileAlertCard(filename, text) {
 	
 	div.hide();
 	div.insertAfter('#afterthis');
-	div.fadeIn(1000);
+	div.fadeIn(fadeTime);
 }
 
 function alertCard(text) {
@@ -190,6 +190,6 @@ function alertCard(text) {
 	
 	div.hide();
 	div.insertAfter('#afterthis');
-	div.fadeIn(1000);
-	div.delay(4000).fadeOut(1000);
+	div.fadeIn(fadeTime);
+	div.delay(4000).fadeOut(fadeTime);
 }
