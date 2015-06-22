@@ -3,6 +3,7 @@ $(document).ready(function()
 	var theform = document.getElementById('mainform');
 	var fileSelect = document.getElementById('files');
 	var uploadButton = document.getElementById('sub');
+	var fileDisplay = document.getElementById('fileDisplay');
 	$('#button-about').attr('href', '#aboutmodal');
 	$('#button-about').leanModal();
 
@@ -22,12 +23,18 @@ $(document).ready(function()
 				} else {
 					fileCard(file.name, _id);
 					ltotal -= 1;
-				}
+				}				
 			}
 			processFilesRecursively(files)
 		}
 	}
 });
+
+function showFiles(){
+	fileDisplay.style.display="initial";
+	fileDisplay.textContent += " " + document.getElementById('files').files[0].name;
+}
+
 var fadeTime = 2000;
 var gCounter = 0;
 var total = 0;
@@ -38,9 +45,9 @@ function processFilesRecursively(fileArray)
 		total += 1
 		return 0;
 	} else {
-	var id = gCounter + total;
-	var file = fileArray[gCounter];
-	if(file.size > 10 * 1024 * 1024)
+		var id = gCounter + total;
+		var file = fileArray[gCounter];
+		if(file.size > 10 * 1024 * 1024)
 	{
 		gCounter += 1;
 		total += 1;

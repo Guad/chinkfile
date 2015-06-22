@@ -24,12 +24,16 @@
         <form class="cener-block" method="POST" enctype="multipart/form-data" id="mainform">
           <span class="btn btn-default btn-file waves-effect waves-light teal darken-1">
             Select
-            <input type="file" name="file[]" multiple id="files">
+            <input type="file" name="file[]" multiple onChange="showFiles()" id="files">
           </span>
           <span class="hide-on-med-and-up"><br/><br/></span>
           <button class="btn btn-file waves-effect waves-light teal darken-1" type="submit" id="sub">Upload
           <i class="mdi-content-send right hide-on-small-only"></i></button>
           <br/>
+		  <div id="fileDisplay" style="display:none">
+			<p><center>File selected:</center></p>
+			<span style="display:inline-block; width: 2;"></span>
+		  </div>
           <a class="waves-effect waves-light btn-flat about" id="button-about" href="#toggled">About</a>
           <a class="waves-effect waves-light btn-flat about" href="/transparency">Transparency</a>
         </form>
