@@ -31,8 +31,8 @@ $(document).ready(function()
 });
 
 function showFiles(){
-	fileDisplay.style.display="initial";
-	fileDisplay.textContent += " " + document.getElementById('files').files[0].name;
+	fileDisplay.style.display="block";
+	fileDisplay.textContent = "File selected: " + document.getElementById('files').files[0].name;
 }
 
 var fadeTime = 2000;
