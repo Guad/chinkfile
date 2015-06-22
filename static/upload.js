@@ -45,9 +45,9 @@ function processFilesRecursively(fileArray)
 		total += 1
 		return 0;
 	} else {
-		var id = gCounter + total;
-		var file = fileArray[gCounter];
-		if(file.size > 10 * 1024 * 1024)
+	var id = gCounter + total;
+	var file = fileArray[gCounter];
+	if(file.size > 10 * 1024 * 1024)
 	{
 		gCounter += 1;
 		total += 1;
